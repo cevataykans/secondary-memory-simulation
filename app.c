@@ -3,9 +3,23 @@
 #include <unistd.h>
 #include <string.h>
 #include "vsimplefs.h"
+void create(){
+    int ret;
+    
+    printf ("started\n"); 
+    
+    ret  = create_format_vdisk ("example", 21); 
+    if (ret != 0) {
+	printf ("there was an error in creating the disk\n");
+	exit(1); 
+    }
+
+    printf ("disk created and formatted.\n"); 
+}
 
 int main(int argc, char **argv)
 {
+    create();
     int ret;
     int fd1, fd2, fd; 
     int i;
@@ -17,12 +31,12 @@ int main(int argc, char **argv)
 
     printf ("started\n");
 
-    if (argc != 2) {
+    /*if (argc != 2) {
 	printf ("usage: app  <vdiskname>\n"); 
 	exit(0); 
-    }
-    strcpy (vdiskname, argv[1]); 
-    
+    }*/
+    //strcpy (vdiskname, argv[1]); 
+    strcpy (vdiskname, "example");
     ret = vsfs_mount (vdiskname); 
     if (ret != 0) {
 	printf ("could not mount \n");
@@ -33,21 +47,26 @@ int main(int argc, char **argv)
     vsfs_create ("file1.bin");
     vsfs_create ("file2.bin");
     vsfs_create ("file3.bin");
-
+    
     fd1 = vsfs_open ("file1.bin", MODE_APPEND);
     fd2 = vsfs_open ("file2.bin", MODE_APPEND); 
-    for (i = 0; i < 10000; ++i) {
-	buffer[0] =   (char) 65;  
-	vsfs_append (fd1, (void *) buffer, 1);
-    }
+    printf("%d %d\n", fd1, fd2);
 
     for (i = 0; i < 10000; ++i) {
-	buffer[0] = (char) 65;
-	buffer[1] = (char) 66;
-	buffer[2] = (char) 67;
-	buffer[3] = (char) 68;
-	vsfs_append(fd2, (void *) buffer, 4);
+        buffer[0] =   (char) 65;  
+        vsfs_append (fd1, (void *) buffer, 1);
     }
+    printf("Check1\n");
+    for (i = 0; i < 10000; ++i) {
+        buffer[0] = (char) 65;
+        buffer[1] = (char) 66;
+        buffer[2] = (char) 67;
+        buffer[3] = (char) 68;
+        //printf("Check2 %d\n", i);
+        vsfs_append(fd2, (void *) buffer, 4);
+        //printf("Check3\n");
+    }
+
     
     vsfs_close(fd1); 
     vsfs_close(fd2); 
@@ -69,5 +88,6 @@ int main(int argc, char **argv)
     }
     vsfs_close (fd); 
     
-    ret = vsfs_umount(); 
+    ret = vsfs_umount();
+    return 0;
 }
