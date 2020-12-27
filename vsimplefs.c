@@ -140,7 +140,7 @@ int vsfs_create(char *filename)
         initFAT();
         fatInit = true;
     }
-    printf("Check1\n");
+    //printf("Check1\n");
     if(file_count == MAX_FILE_NUMBER){
         printf("No space for create a new file\n");
         return -1;
@@ -152,7 +152,7 @@ int vsfs_create(char *filename)
             break;
         }
     }
-    printf("Check2\n");
+    //printf("Check2\n");
     int offset = firstEmpty / DIR_ENTRY_PER_BLOCK;
     int blockNum = offset + DIR_START;
     
@@ -172,23 +172,23 @@ int vsfs_create(char *filename)
     for(int i = 0 ; i < strlen(filename) ; i++){
         ((char*)block + startByte + i)[0] = filename[i];
     }
-    printf("Check4\n");
+    //printf("Check4\n");
     ((int*)(block + startByte + 64))[0] = 0; // size
     ((int*)(block + startByte + 68))[0] = -1; // point to FAT entry yet
-    printf("Check5\n");
+    //printf("Check5\n");
     res = write_block(block, blockNum);
     if(res == -1){
         printf("write error in create\n");
         free(block);
         return -1;
     }
-    printf("Check6\n");
+    //printf("Check6\n");
     files[firstEmpty].name = filename;
     files[firstEmpty].directoryBlockNum = blockNum;
     files[firstEmpty].directoryBlockOffset = blockOffset;
     files[firstEmpty].openCount = 0;
     file_count++;
-    printf("create done\n");
+    //printf("create done\n");
     free(block);
     return (0);
 }
@@ -205,7 +205,7 @@ int vsfs_open(char *file, int mode)
     // first find it in files array
     int fd = -1;
     for(int i = 0 ; i < MAX_FILE_NUMBER ; i++){
-        if(strcmp(files[i].name, file) == 0){ // we found the file
+        if(files[i].name != NULL && strcmp(files[i].name, file) == 0){ // we found the file
             fd = i;
             break;
         }
@@ -223,19 +223,19 @@ int vsfs_open(char *file, int mode)
             return -1;
         }
     }
-    printf("Check4\n");
+    //printf("Check4\n");
     int firstEmpty = -1;
     for(int i = 0 ; i < MAX_OPENED_FILE_PER_PROCESS ; i++){
         if(openTable[i] == -1){
             firstEmpty = i;
         }
     }
-    printf("Check5\n");
+    //printf("Check5\n");
     openTable[firstEmpty] = fd;
     fileMode[firstEmpty] = mode;
     files[fd].openCount++;
     openedFileCount++;
-    printf("Open done\n");
+    //printf("Open done\n");
     return fd; 
 }
 
@@ -331,7 +331,7 @@ int vsfs_append(int fd, void *buf, int n)
         return -1;
     }
 
-    printf("Done basic checks\n");
+    //printf("Done basic checks\n");
 
     int blockNum = files[fd].directoryBlockNum;
     int blockOffset = files[fd].directoryBlockOffset;
@@ -339,7 +339,7 @@ int vsfs_append(int fd, void *buf, int n)
     if(getDirectoryEntry(blockNum, blockOffset, &size, &fatIndex) == -1){
         return -1;
     }
-    printf("Get directory entry\n");
+    //printf("Get directory entry\n");
     int dataBlockOffset = size % BLOCKSIZE;
     if(dataBlockOffset == 0){
         dataBlockOffset = BLOCKSIZE;
@@ -353,7 +353,7 @@ int vsfs_append(int fd, void *buf, int n)
         printf("No enough space!\n");
         return -1;
     }
-    printf("Calculate byte things\n");
+    //printf("Calculate byte things\n");
 
     void* block = (void*) malloc(BLOCKSIZE);
     int lastFAT, blockNo;
@@ -385,6 +385,7 @@ int vsfs_append(int fd, void *buf, int n)
             fatIndex = getNextFATEntry(fatIndex);
         }
         emptyFAT = getNextFATEntry(fatIndex);
+        printf("new empty fat is %d\n", emptyFAT);
         if(changeFATEntry(fatIndex, -1) == -1){
             free(block);
             return -1;
@@ -415,16 +416,21 @@ int vsfs_append(int fd, void *buf, int n)
 
     else{
         int byteCount = 0;
-
+        if(size == 4097){
+            printf("Hello\n");
+        }
         if(getLastFATEntry(fatIndex, &lastFAT, &blockNo) == -1){
             return -1;
         }
-
+        if(size == 4097){
+            printf("Hello\n");
+        }
+        
         if(read_block(block, blockNo) == -1){
             printf("Read error in get data block\n");
             return -1;
         }
-
+        
         for(int i = dataBlockOffset ; i < BLOCKSIZE ; i++){
             if(byteCount == n){
                 break;
@@ -440,10 +446,11 @@ int vsfs_append(int fd, void *buf, int n)
         }
 
         if(requiredBlockCount == 0){
+            changeDirectorySize(blockNum, blockOffset, size + n);
             free(block);
             return 0;
         }
-
+        
         if(changeFATEntry(lastFAT, emptyFAT) == -1){
             free(block);
             return -1;
@@ -477,6 +484,11 @@ int vsfs_append(int fd, void *buf, int n)
             return -1;
         }
 
+        if(size == 4096){
+            printf("New empty fat is %d\n", emptyFAT);
+            printf("%d, %d\n", fatIndex, getNextFATEntry(fatIndex));
+        }
+
         int i = 0;
         while(byteCount < n){
             ((char*)block)[i] = ((char*)buf)[byteCount];
@@ -499,7 +511,8 @@ int vsfs_append(int fd, void *buf, int n)
             return -1;
         }
     }
-
+    printf("Here! %d\n", size);
+    free(block);
     changeDirectorySize(blockNum, blockOffset, size + n);
     return (0); 
 }
@@ -624,9 +637,10 @@ int getLastFATEntry(int fatIndex, int* lastIndex, int* blockNo){ // exact block 
     void* block = (void*) malloc(BLOCKSIZE);
     int prevFatIndex;
     int curFatIndex = fatIndex;
-    while(curFatIndex != -1){    
-        int blockNum = FAT_START + fatIndex / FAT_ENTRY_PER_BLOCK;
-        int blockOffset = fatIndex % FAT_ENTRY_PER_BLOCK;
+    //printf("%d\n", curFatIndex);
+    while(curFatIndex != -1){
+        int blockNum = FAT_START + curFatIndex / FAT_ENTRY_PER_BLOCK;
+        int blockOffset = curFatIndex % FAT_ENTRY_PER_BLOCK;
         int startByte = blockOffset * FAT_ENTRY_SIZE;
         if(read_block(block, blockNum) == -1){
             printf("Read error in get data block\n");
@@ -635,6 +649,7 @@ int getLastFATEntry(int fatIndex, int* lastIndex, int* blockNo){ // exact block 
         }
         prevFatIndex = curFatIndex;
         curFatIndex = ((int*)(block + startByte))[0];
+        printf("%d, %d\n", prevFatIndex, curFatIndex);
         *blockNo = ((int*)(block + startByte + 4))[0] + DATA_START;
     }
     *lastIndex = prevFatIndex;
@@ -725,6 +740,7 @@ void initFAT(){
             ((int*)(block + j*FAT_ENTRY_SIZE))[0] = FAT_ENTRY_PER_BLOCK * i + j + 1;
             ((int*)(block + j*FAT_ENTRY_SIZE + 4))[0] = FAT_ENTRY_PER_BLOCK * i + j; // block num
             if(i == blockCount && j == blockOffset - 1){
+                ((int*)(block + j*FAT_ENTRY_SIZE))[0] = -1;
                 break;
             }
         }
