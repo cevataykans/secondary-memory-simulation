@@ -19,6 +19,20 @@
 #define DIR_ENTRY_PER_BLOCK 16
 #define FAT_ENTRY_PER_BLOCK 512
 
+struct DirectoryEntry{
+    char* name;
+    int size;
+    int fatIndex;
+};
+
+struct File{
+    int directoryBlock;
+    int directoryBlockOffset;
+    struct DirectoryEntry directoryEntry;
+    int openMode;
+    int readPointer;
+};
+
 int create_format_vdisk (char *vdiskname, unsigned int m);
 
 int vsfs_mount (char *vdiskname);
@@ -39,24 +53,38 @@ int vsfs_append(int fd, void *buf, int n);
 
 int vsfs_delete(char *filename);
 
-int getBlockNo(int fatIndex);
-
 int getDataBlock(void* block, int fatIndex);
 
+int putDataBlock(void* data, int fatIndex);
+
 int getNextFATEntry(int fatIndex);
+
+int getBlockNo(int fatIndex);
 
 int getLastFATEntry(int fatIndex, int* lastIndex, int* blockNo);
 
 int changeFATEntry(int fatIndex, int newNext);
 
+int getDirectoryEntry(int blockNo, int blockOffset, int* size, int* fatIndex);
+
 int changeDirectoryFATEntry(int blockNo, int blockOffset, int fatIndex);
 
 int changeDirectorySize(int blockNo, int blockOffset, int size);
 
-int putDataBlock(void* data, int fatIndex);
+void initFAT(int dataCount);
 
-void initFAT();
+void initSuperblock(int dataCount);
 
-int getDirectoryEntry(int blockNo, int blockOffset, int* size, int* fatIndex);
+void initDirectoryStructure();
+
+void updateSuperblock();
+
+void getSuperblock();
 
 int checkOpened(int fd);
+
+void updateDirectoryEntry(int fd);
+
+void clearOpenTable();
+
+void printDisk();

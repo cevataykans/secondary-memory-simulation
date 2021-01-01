@@ -19,7 +19,7 @@ void create(){
 
 int main(int argc, char **argv)
 {
-    create();
+    //create();
     int ret;
     int fd1, fd2, fd; 
     int i;
@@ -35,7 +35,8 @@ int main(int argc, char **argv)
 	printf ("usage: app  <vdiskname>\n"); 
 	exit(0); 
     }*/
-    //strcpy (vdiskname, argv[1]); 
+    char* mode = argv[1];
+
     strcpy (vdiskname, "example");
     ret = vsfs_mount (vdiskname); 
     if (ret != 0) {
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
     vsfs_close(fd2); 
 
     fd = vsfs_open("file3.bin", MODE_APPEND);
+    printf("Opened!\n");
     /*for (i = 0; i < 5; ++i) {
 	memcpy (buffer, buffer2, 8); // just to show memcpy
 	vsfs_append(fd, (void *) buffer, 8); 
@@ -81,12 +83,21 @@ int main(int argc, char **argv)
         }
         printf("\n");
     }*/
-    char* ptr = "Cevat sanirim oldu aahhahaha";
-    printf("Len: %lu\n", strlen(ptr));
-    vsfs_append(fd, (void*) ptr, 28);
-    vsfs_close (fd); 
+    /*for(int i = 0 ; i < 20 ; i++){
+        char num = (i + 50);
+        printf("Check1111111\n");
+        char ptr[8] = {num, 'r', 'a', 'n', 'd', 'o', 'm', '\0'};
+        printf("Check222222\n");
+        //ptr[0] = num;
+        printf("Len: %lu\n", strlen(ptr));
+        printf("%s\n", ptr);
+        vsfs_append(fd, (void*) ptr, strlen(ptr));
+        size = vsfs_getsize (fd);
+        printf("Size of file3 is %d\n", size);
+    }*/
+    //vsfs_close (fd); 
 
-    fd = vsfs_open("file3.bin", MODE_READ);
+    //fd = vsfs_open("file3.bin", MODE_READ);
     size = vsfs_getsize (fd);
     printf("Size of file3 is %d\n", size);
     //for (i = 0; i < size; ++i) {
@@ -99,19 +110,25 @@ int main(int argc, char **argv)
     //}
     //vsfs_close (fd); 
     
-    void* fileData = (void*) malloc(28);
+    /*void* fileData = (void*) malloc(28);
     //fd = vsfs_open("file3.bin", MODE_READ);
-    vsfs_read(fd, fileData, 28);
-    printf("Data is:\n");
-    //for(int i = 0 ; i < 28 ; i++){
-        printf("%s\n", ((char*)(fileData)));
+    for(int i = 0 ; i < 17 ;i++)
+    {
+        vsfs_read(fd, fileData, 28);
+        printf("Data is:\n");
+        for(int i = 0 ; i < 28 ; i++){
+            printf("%c", ((char*)(fileData + i))[0]);
+        }
+        printf("\n");
+    }*/
     //}
-    vsfs_delete("file3.bin");
+    //vsfs_delete("file3.bin");
     vsfs_close(fd);
-    vsfs_delete("file3.bin");
-    printf("checkpoint\n");
-    vsfs_open("file3.bin", MODE_APPEND);
-    printf("checkpoint\n");
+    //vsfs_delete("file3.bin");
+    //printf("checkpoint\n");
+    //vsfs_open("file3.bin", MODE_APPEND);
+    //printf("checkpoint\n");
+    printDisk();
     ret = vsfs_umount();
     printf("checkpoint\n");
     //char a = (char)50;
