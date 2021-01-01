@@ -59,17 +59,9 @@ int putDataBlock(void* data, int fatIndex);
 
 int getNextFATEntry(int fatIndex);
 
-int getBlockNo(int fatIndex);
-
 int getLastFATEntry(int fatIndex, int* lastIndex, int* blockNo);
 
 int changeFATEntry(int fatIndex, int newNext);
-
-int getDirectoryEntry(int blockNo, int blockOffset, int* size, int* fatIndex);
-
-int changeDirectoryFATEntry(int blockNo, int blockOffset, int fatIndex);
-
-int changeDirectorySize(int blockNo, int blockOffset, int size);
 
 void initFAT(int dataCount);
 
