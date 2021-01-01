@@ -141,7 +141,7 @@ int vsfs_create(char *filename)
             int startByte = j * DIR_ENTRY_SIZE;
             char isUsed = ((char*)(block + startByte + 72))[0];
             char* name = ((char*)(block + startByte));
-            if(isUsed == 1 && strcmp(name, filename) == 0){
+            if(isUsed == 49 && strcmp(name, filename) == 0){
                 printf("Already created!\n");
                 free(block);
                 return -1;
@@ -157,7 +157,7 @@ int vsfs_create(char *filename)
         for(int j = 0 ; j < DIR_ENTRY_PER_BLOCK ; j++){
             int startByte = j * DIR_ENTRY_SIZE;
             char isUsed = ((char*)(block + startByte + 72))[0];
-            if(isUsed == 0){
+            if(isUsed == 48){
                 dirBlock = i;
                 dirBlockOffset = j;
                 //printf("Empty dir entry is found %d, %d!\n", i, j);
@@ -173,12 +173,12 @@ int vsfs_create(char *filename)
     int startByte = dirBlockOffset * DIR_ENTRY_SIZE;
 
     for(int i = 0 ; i < strlen(filename) ; i++){
-        ((char*)block + startByte + i)[0] = filename[i];
+        ((char*)(block + startByte + i))[0] = filename[i];
     }
 
     ((int*)(block + startByte + 64))[0] = 0; // size
     ((int*)(block + startByte + 68))[0] = -1; // point to FAT entry yet
-    ((char*)(block + startByte + 72))[0] = 1; // it is used now
+    ((char*)(block + startByte + 72))[0] = 49; // it is used now
 
     int res = write_block(block, dirBlock + DIR_START);
     if(res == -1){
@@ -223,7 +223,7 @@ int vsfs_open(char *file, int mode)
             int startByte = j * DIR_ENTRY_SIZE;
             char isUsed = ((char*)(block + startByte + 72))[0];
             char* filename = ((char*)(block + startByte));
-            if(isUsed == 1 && strcmp(file, filename) == 0){ // we found the directory entry
+            if(isUsed == 49 && strcmp(file, filename) == 0){ // we found the directory entry
                 openTable[fd].directoryBlock = i;
                 openTable[fd].directoryBlockOffset = j;
                 openTable[fd].openMode = mode;
@@ -341,7 +341,7 @@ int vsfs_append(int fd, void *buf, int n)
 
     int size = openTable[fd].directoryEntry.size; 
     int fatIndex = openTable[fd].directoryEntry.fatIndex;
-    printf("%s: %d\n", openTable[fd].directoryEntry.name, fatIndex);
+    printf("Name: %s: %d\n", openTable[fd].directoryEntry.name, fatIndex);
 
     int dataBlockOffset = size % BLOCKSIZE;
     if(dataBlockOffset == 0){
@@ -361,13 +361,16 @@ int vsfs_append(int fd, void *buf, int n)
     int lastFAT, blockNo;
 
     if(size == 0){ // the file is empty
+        int check = 0;
         //printf("File is empty\n");
+        printf("File name is %lu (%d)\n", strlen(openTable[fd].directoryEntry.name), check);
+        check++;
         openTable[fd].directoryEntry.fatIndex = emptyFAT;
         fatIndex = emptyFAT;
         int byteCount = 0;
         for(int i = 0 ; i < requiredBlockCount - 1; i++){
             for(int j = 0 ; j < BLOCKSIZE ; j++){
-                ((char*)block)[j] = ((char*)buf)[byteCount];
+                ((char*)(block + j))[0] = ((char*)(buf + byteCount))[0];
                 byteCount++;
             }
             
@@ -378,44 +381,50 @@ int vsfs_append(int fd, void *buf, int n)
             fatIndex = getNextFATEntry(fatIndex);
             //printf("%s: The next fat entry is: %d\n", openTable[fd].directoryEntry.name, fatIndex);
         }
+        printf("File name is %lu (%d)\n", strlen(openTable[fd].directoryEntry.name), check);
+        check++;
         emptyFAT = getNextFATEntry(fatIndex);
+        printf("File name is %lu (%d)\n", strlen(openTable[fd].directoryEntry.name), check);
+        check++;
         //printf("%s: The next fat entry is: %d %d\n", openTable[fd].directoryEntry.name, fatIndex, emptyFAT);
         //printf("new empty fat is %d\n", emptyFAT);
         if(changeFATEntry(fatIndex, -1) == -1){
             free(block);
             return -1;
         }
+        printf("File name is %lu (%d)\n", strlen(openTable[fd].directoryEntry.name), check);
+        check++;
         int i = 0;
         while(byteCount < n){
-            ((char*)block)[i] = ((char*)buf)[byteCount];
-            i++;
-            byteCount++;
+            if(byteCount < 270) printf("Inside while the name is %s (%d)\n",openTable[fd].directoryEntry.name,byteCount );
+            ((char*)(block + i))[0] = ((char*)(buf + byteCount))[0];
+            //printf("i: %d, byteCount: %d\n", i, byteCount);
+            i += 1;
+            byteCount += 1;
         }
-        
+        printf("Burada patladi!\n");
+        printf("File name is %lu (%d)\n", strlen(openTable[fd].directoryEntry.name), check);
+        check++;
         if(putDataBlock(block, fatIndex) == -1){
             printf("Problemmmm\n");
             return -1;
         }
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
         printf("Problemmmm33333\n");
     }
 
     else{
+        int check = 0;
         int byteCount = 0;
-        if(size == 4097){
-            printf("Hello\n");
-        }
+
         if(getLastFATEntry(fatIndex, &lastFAT, &blockNo) == -1){
             return -1;
         }
-        if(size == 4097){
-            printf("Hello\n");
-        }
         
-        if(read_block(block, blockNo) == -1){
-            printf("Read error in get data block\n");
-            return -1;
-        }
-        
+        getDataBlock(block, lastFAT);
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
         for(int i = dataBlockOffset ; i < BLOCKSIZE ; i++){
             if(byteCount == n){
                 break;
@@ -423,25 +432,29 @@ int vsfs_append(int fd, void *buf, int n)
             ((char*)block)[i] = ((char*)buf)[byteCount];
             byteCount += 1;
         }
-
-        if(write_block(block, blockNo) == -1){
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
+        if(putDataBlock(block, lastFAT) == -1){
             printf("Write error in get data block\n");
             free(block);
             return -1;
         }
-
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
         if(requiredBlockCount == 0){
             openTable[fd].directoryEntry.size = size + n;
             freeBlockCount -= requiredBlockCount;
             free(block);
             return 0;
         }
-        
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
         if(changeFATEntry(lastFAT, emptyFAT) == -1){
             free(block);
             return -1;
         }
-
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
         fatIndex = emptyFAT;
         for(int i = 0 ; i < requiredBlockCount - 1; i++){
             for(int j = 0 ; j < BLOCKSIZE ; j++){
@@ -454,15 +467,12 @@ int vsfs_append(int fd, void *buf, int n)
             }
             fatIndex = getNextFATEntry(fatIndex);
         }
+        //printf("File name is %s (%d)\n", openTable[fd].directoryEntry.name, check);
+        check++;
         emptyFAT = getNextFATEntry(fatIndex);
         if(changeFATEntry(fatIndex, -1) == -1){
             free(block);
             return -1;
-        }
-
-        if(size == 4096){
-            printf("New empty fat is %d\n", emptyFAT);
-            printf("%d, %d\n", fatIndex, getNextFATEntry(fatIndex));
         }
 
         int i = 0;
@@ -484,8 +494,13 @@ int vsfs_append(int fd, void *buf, int n)
 }
 
 int vsfs_delete(char *file)
-{
-    
+{   
+    for(int i = 0 ; i < MAX_OPENED_FILE_PER_PROCESS ; i++){
+        if(openTable[i].directoryBlock > -1 && strcmp(file, openTable[i].directoryEntry.name) == 0){
+            printf("The file is still open. It is being closing...\n");
+            vsfs_close(i);
+        }
+    }
     // make its dir structure invalid
     int fatIndex = -2;
     bool found = false;
@@ -496,8 +511,8 @@ int vsfs_delete(char *file)
             int startByte = j * DIR_ENTRY_SIZE;
             char isUsed = ((char*)(block + startByte + 72))[0];
             char* filename = ((char*)(block + startByte));
-            if(isUsed == 1 && strcmp(file, filename) == 0){ // we found the directory entry
-                ((char*)(block + startByte + 72))[0] = 0; // not used anymore
+            if(isUsed == 49 && strcmp(file, filename) == 0){ // we found the directory entry
+                ((char*)(block + startByte + 72))[0] = 48; // not used anymore
                 fatIndex = ((int*)(block + startByte + 68))[0];
                 found = true;
                 break;
@@ -551,15 +566,10 @@ int getDataBlock(void* block, int fatIndex){
 }
 
 int putDataBlock(void* data, int fatIndex){
-    void* block = (void*) malloc(BLOCKSIZE);
-
-    int dataBlock = fatIndex;
-    if(write_block(data, dataBlock + DATA_START) == -1){
+    if(write_block(data, fatIndex + DATA_START) == -1){
         printf("Read error in get data block\n");
-        free(block);
         return -1;
     }
-    free(block);
     return 0;
 }
 
@@ -656,7 +666,7 @@ void initDirectoryStructure(){
     void* block = (void*) malloc(BLOCKSIZE);
     for(int j = 0 ; j < DIR_ENTRY_PER_BLOCK ; j++){
         int startByte = j * DIR_ENTRY_SIZE;
-        ((char*)(block + startByte + 72))[0] = 0;
+        ((char*)(block + startByte + 72))[0] = 48;
     }
     for(int i = 0 ; i < DIR_COUNT ; i++){
         write_block(block, DIR_START + i);
@@ -698,6 +708,7 @@ void updateDirectoryEntry(int fd){
     int startByte = openTable[fd].directoryBlockOffset * DIR_ENTRY_SIZE;
     ((int*)(block + startByte + 64))[0] = openTable[fd].directoryEntry.size;
     ((int*)(block + startByte + 68))[0] = openTable[fd].directoryEntry.fatIndex;
+    printf("Used char is %c\n", ((char*)(block + startByte + 72))[0]);
     write_block(block, openTable[fd].directoryBlock + DIR_START);
     free(block);
 }
@@ -731,9 +742,10 @@ void printDisk(){
     for(int i = DIR_START ; i < DIR_START + DIR_COUNT ; i++){
         read_block(block, i);
         for(int j = 0 ; j < DIR_ENTRY_PER_BLOCK ; j++){
+            printf("offset: %d\n", j);
             int startByte = j * DIR_ENTRY_SIZE;
             char isUsed = ((char*)(block + startByte + 72))[0];
-            if(isUsed == 1){
+            if(isUsed == 49){
                 printf("\tDirectory entry %d:\n", (i - 1)* DIR_ENTRY_PER_BLOCK + j);
                 printf("\t\tName: %s\n", ((char*)(block + startByte)));
                 printf("\t\tSize: %d\n", ((int*)(block + startByte + 64))[0]);
@@ -742,7 +754,7 @@ void printDisk(){
                 int blockCount = 0;
                 int remainingByte = ((int*)(block + startByte + 64))[0];
                 while(curFatIndex > -1){
-                    printf("\t\t\tBlock %d:\n", blockCount);
+                    printf("\n\t\t\tBlock %d:\n", curFatIndex);
                     blockCount++;
                     printf("\t\t\t\t");
                     getDataBlock(block, curFatIndex);
