@@ -6,6 +6,7 @@
 #define MODE_APPEND 1
 #define BLOCKSIZE 4096 // bytes
 #define MAX_FILE_NUMBER 112
+#define MAX_FILENAME_LENGTH 64
 #define MAX_OPENED_FILE_PER_PROCESS 16
 #define FAT_ENTRY_SIZE 8 // byte
 #define DIR_ENTRY_SIZE 256 // byte
@@ -20,7 +21,7 @@
 #define FAT_ENTRY_PER_BLOCK 512
 
 struct DirectoryEntry{
-    char* name;
+    char name[MAX_FILENAME_LENGTH];
     int size;
     int fatIndex;
 };
@@ -80,3 +81,5 @@ void updateDirectoryEntry(int fd);
 void clearOpenTable();
 
 void printDisk();
+
+void printFile(char* filename);
